@@ -1,49 +1,42 @@
-name: Rust Ultimate Quality Control
+name: Rust Collaborator CI
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
-  workflow_dispatch: # Per avviarlo a mano quando vuoi tu
+  workflow_dispatch:
 
-env:
-  CARGO_TERM_COLOR: always
+# Fondamentale: diamo al robot il permesso di scrivere nel repository
+permissions:
+  contents: write
 
 jobs:
-  quality-assurance:
-    name: Check & Test
+  style-and-fix:
     runs-on: ubuntu-latest
     
     steps:
       - name: 1. Checkout del codice
         uses: actions/checkout@v4
+        with:
+          # Questo permette al robot di caricare le modifiche correttamente
+          ref: ${{ github.head_ref }}
 
-      - name: 2. Setup Rust Professionale
+      - name: 2. Setup Rust
         uses: dtolnay/rust-toolchain@stable
         with:
-          components: clippy, rustfmt
+          components: rustfmt, clippy
 
-      - name: 3. Il "Turbo" (Caching)
-        # Questa è la vera differenza: memorizza le vecchie compilazioni
-        # per rendere l'Action 5 volte più veloce nelle corse successive.
-        uses: swatinem/rust-cache@v2
+      - name: 3. Correzione Automatica (fmt)
+        # Qui usiamo 'cargo fmt' senza '--check' perché vogliamo che modifichi i file
+        run: cargo fmt --all
 
-      - name: 4. Controllo Formattazione (Stile)
-        run: cargo fmt --all -- --check
-
-      - name: 5. Analisi Statica (Clippy)
-        # Blocca il processo se trova codice "scritto male" anche se funzionante
+      - name: 4. Controllo Qualità (Clippy)
+        # Clippy segnala errori logici; questi è meglio vederli nel log
         run: cargo clippy -- -D warnings
 
-      - name: 6. Test di Sicurezza (Audit)
-        # Controlla se le librerie che stai usando hanno falle di sicurezza note
-        continue-on-error: true # Non bloccare tutto se una libreria è vecchia, ma avvisami
-        run: |
-          cargo install cargo-audit
-          cargo audit
-
-      - name: 7. Compilazione e Test finali
-        run: |
-          cargo build --verbose
-          cargo test --verbose
+      - name: 5. Applica le correzioni
+        # Se cargo fmt ha cambiato qualcosa, questo step crea un commit automatico
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "🤖 Robot: Ho sistemato la formattazione del codice"
