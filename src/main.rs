@@ -17,7 +17,7 @@ fn main() {
         .get_matches();
 
     if let Some(device) = matches.get_one::<String>("device") {
-        let output = serde_json::to_string(&run_lsblk(&device)).unwrap();
+        let output = serde_json::to_string(&run_lsblk(device)).unwrap();
         println!("{}", output);
     } else {
         println!("No device provided");
