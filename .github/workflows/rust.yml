@@ -1,0 +1,49 @@
+name: Rust Ultimate Quality Control
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch: # Per avviarlo a mano quando vuoi tu
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  quality-assurance:
+    name: Check & Test
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 1. Checkout del codice
+        uses: actions/checkout@v4
+
+      - name: 2. Setup Rust Professionale
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+
+      - name: 3. Il "Turbo" (Caching)
+        # Questa è la vera differenza: memorizza le vecchie compilazioni
+        # per rendere l'Action 5 volte più veloce nelle corse successive.
+        uses: swatinem/rust-cache@v2
+
+      - name: 4. Controllo Formattazione (Stile)
+        run: cargo fmt --all -- --check
+
+      - name: 5. Analisi Statica (Clippy)
+        # Blocca il processo se trova codice "scritto male" anche se funzionante
+        run: cargo clippy -- -D warnings
+
+      - name: 6. Test di Sicurezza (Audit)
+        # Controlla se le librerie che stai usando hanno falle di sicurezza note
+        continue-on-error: true # Non bloccare tutto se una libreria è vecchia, ma avvisami
+        run: |
+          cargo install cargo-audit
+          cargo audit
+
+      - name: 7. Compilazione e Test finali
+        run: |
+          cargo build --verbose
+          cargo test --verbose
